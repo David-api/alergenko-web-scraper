@@ -17,7 +17,8 @@ class ScraperMercator(Scraper):
 
     def fetch_data(self):
         response = requests.get(self.url)
-        return response.json() if response is not None else None
+        data = response.json()
+        return data if len(data) > 0 else None
 
     def get_allergens(self, data):
         allergens = ""
@@ -110,20 +111,19 @@ class ScraperMercator(Scraper):
         return True
 
     def work(self):
-        response = ""
+        response = self.fetch_data()  # pridobi podatke
         while response is not None:
-            response = self.fetch_data()  # pridobi podatke
+            print(self.fetch_offset, "\n")
             for data in response:
                 exctracted_data = self.extract_data(data)  # izlušči potrebne podatke
                 if exctracted_data is not None:
                     self.save(exctracted_data)  # shrani podatke
-
-                print(exctracted_data, self.fetch_offset,  "\n")
 
             self.fetch_offset += 1  # povečamo odmik da dobimo nove izdelke
             self.url = \
                 f"https://trgovina.mercator.si/market/products/browseProducts/getProducts?limit={self.fetch_limit}&offset={self.fetch_offset}&filterData%5Bcategories%5D=14535405%2C14535446%2C14535463%2C14535481%2C14535505%2C14535512%2C14535548%2C14535588%2C14535612%2C14535637%2C14535661%2C14535681%2C14535711%2C14535736%2C14535749%2C14535803%2C14535810%2C16873196&filterData%5Boffset%5D=2&from={self.fetch_offset * self.fetch_limit}&_=1656771045265"
 
             sleep(randint(0, self.waiting_time))  # naključni interval čakanja
+            response = self.fetch_data()
 
         self.connection.close()
