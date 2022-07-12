@@ -7,8 +7,7 @@ import requests
 
 
 class ScraperMercator(Scraper):
-    def __init__(self, connection, fetch_limit, fetch_offset, waiting_time):
-        self.connection = connection
+    def __init__(self, fetch_limit, fetch_offset, waiting_time):
         self.fetch_limit = fetch_limit
         self.fetch_offset = fetch_offset
         self.url = \
@@ -24,33 +23,33 @@ class ScraperMercator(Scraper):
         allergens = ""
         for allergen_data in data["data"]["allergens"]:
             allergen = allergen_data["value"]
-            if "70_true" in allergen:
+            if "70_true" in allergen or "70_mixed" in allergen:
                 allergens += "jajca, "
-            elif "71_true" in allergen:
+            elif "71_true" in allergen or "71_mixed" in allergen:
                 allergens += "oreščke, "
-            elif "72_true" in allergen:
+            elif "72_true" in allergen or "72_mixed" in allergen:
                 allergens += "gluten, "
-            elif "73_true" in allergen:
+            elif "73_true" in allergen or "73_mixed" in allergen:
                 allergens += "mleko, "
-            elif "74_true" in allergen:
+            elif "74_true" in allergen or "74_mixed" in allergen:
                 allergens += "sojo, "
-            elif "75_true" in allergen:
+            elif "75_true" in allergen or "75_mixed" in allergen:
                 allergens += "arašide, "
-            elif "76_true" in allergen:
+            elif "76_true" in allergen or "76_mixed" in allergen:
                 allergens += "zeleno, "
-            elif "77_true" in allergen:
+            elif "77_true" in allergen or "77_mixed" in allergen:
                 allergens += "ribe, "
-            elif "78_true" in allergen:
+            elif "78_true" in allergen or "78_mixed" in allergen:
                 allergens += "rake, "
-            elif "79_true" in allergen:
+            elif "79_true" in allergen or "79_mixed" in allergen:
                 allergens += "gorčično seme, "
-            elif "80_true" in allergen:
+            elif "80_true" in allergen or "80_mixed" in allergen:
                 allergens += "sezam, "
-            elif "81_true" in allergen:
+            elif "81_true" in allergen or "81_mixed" in allergen:
                 allergens += "SO2 - Žveplov dioksid (več kot 10mg/kg ali 10mg/l), "
-            elif "82_true" in allergen:
+            elif "82_true" in allergen or "82_mixed" in allergen:
                 allergens += "volčji bob, "
-            elif "83_true" in allergen:
+            elif "83_true" in allergen or "83_mixed" in allergen:
                 allergens += "mehkužce, "
 
         return "Izdelek vsebuje " + allergens[0: allergens.rfind(", ")] if len(allergens) > 0 else None
@@ -86,13 +85,14 @@ class ScraperMercator(Scraper):
         if "data" in data:
             for barcode in data["data"]["gtins"]:
                 extraced_data[barcode["gtin"]] = {
+                    "barcode": barcode["gtin"],
                     "itemId": data["itemId"],
                     "name": data["data"]["name"],
-                    "brand_name": data["data"]["brand_name"],
+                    "brandName": data["data"]["brand_name"],
                     "mainImageSrc": data["mainImageSrc"],
                     "allergens": self.get_allergens(data),
                     "ingredients": self.get_ingredients(data),
-                    "nutrition_values": self.get_nutrition_values(data),
+                    "nutritionValues": self.get_nutrition_values(data),
                     "url": "https://trgovina.mercator.si" + data["url"][0: str(data["url"]).rfind("/")],
                 }
             return extraced_data
@@ -102,13 +102,9 @@ class ScraperMercator(Scraper):
     def to_json(self, data: dict):
         return json.dumps(data)
 
-    def save(self, data: dict):  # shrani podatke na reddis
-        for key, fields in data.items():
-            for field, value in fields.items():
-                self.connection.hset(str(key), str(field), str(value))
-                self.connection.save()
-
-        return True
+    def save(self, data: dict):  # shrani podatke na reddis preko POST requesta
+        for barcode, fields in data.items():
+            requests.post("http://localhost:8082/product/add", data=fields)
 
     def work(self):
         response = self.fetch_data()  # pridobi podatke
@@ -125,5 +121,3 @@ class ScraperMercator(Scraper):
 
             sleep(randint(0, self.waiting_time))  # naključni interval čakanja
             response = self.fetch_data()
-
-        self.connection.close()
